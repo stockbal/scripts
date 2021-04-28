@@ -3,4 +3,4 @@ Clear-Host
 Set-PoshPrompt -Theme avit
 
 # Module imports
-Import-Module $env:PSScripts\ps\Folder-Scripts.psm1
+Import-Module $env:PSScripts\Folder-Scripts.psm1
