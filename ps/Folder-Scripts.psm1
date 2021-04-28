@@ -15,9 +15,9 @@ Function Get-FolderSizes() {
     $i = 0;
     gci -force $FolderName -ErrorAction SilentlyContinue | ? { $_ -is [io.directoryinfo] } | % { 
         $i++
-        $percenComplete = $i / $FileCount * 100
-        $percentText = '{0:N1} MB' -f $percenComplete
-	    Write-Progress -Activity "Determining Folder/File Sizes" -Status "$percentText% Complete" -PercentComplete $percenComplete;
+        $percentComplete = $i / $FileCount * 100
+        $percentText = '{0:N1}' -f $percentComplete
+	    Write-Progress -Activity "Determining Folder/File Sizes" -Status "$percentText% Complete" -PercentComplete $percentComplete;
 	    $len = 0
 	    gci -recurse -force $_.fullname -ErrorAction SilentlyContinue | % { $len += $_.length }
         $AllFilesLength += $len
