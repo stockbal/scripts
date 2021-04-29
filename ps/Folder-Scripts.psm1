@@ -5,12 +5,13 @@ Function Get-FolderSizes() {
         [string]$FolderName
     )
     $Files = @()
-    $FileCount = (gci -Path $args[0]).Count
+    $FileCount = (gci -Path $FolderName).Count
     $AllFilesLength = 0
     if ($FileCount -eq 0) {
-        "Folder $args[0] does not contain any files/folder"
+        "Folder $FolderName does not contain any files/folder"
         return
     }
+    "FolderCount: $FileCount"
     # Start size determination
     $i = 0;
     gci -force $FolderName -ErrorAction SilentlyContinue | ? { $_ -is [io.directoryinfo] } | % { 
