@@ -1,3 +1,91 @@
+######################################
+# Checks if the directory is a git directory
+Function isGit() {
+    param(
+        [Parameter()]
+        [string]$path
+    )
+    (gci -Hidden  -Path $path) | % { 
+        if ($_.Name -eq ".git") { 
+            return $true 
+        } 
+    }
+    return $false
+}
+
+#######################################
+# Checks if the given branch exists in the given remote
+Function existsRemoteBranch() {
+    param(
+        [Parameter()]
+        [string]$gitPath, 
+        [Parameter()]
+        [string]$remote, 
+        [Parameter()]
+        [string]$branch
+    )
+    cd gitPath
+    $branchExists = ($(git ls-remote --heads $remote $branch ) -ne "")
+    cd ..
+    return $branchExists
+}
+#######################################
+# Retrieves the full path of an i18n folder inside the 
+# provided path
+Function getI18nFolder([string]$path) {
+    (gci $path -Recurse) | % {
+        if ($_.Name -eq "i18n") {
+            return $_.FullName
+        }
+    }
+}
+
+Function copyI18nFolder() {
+    param(
+        [Parameter()]
+        [string]$Path, 
+        [Parameter()]
+        [string]$TargetFolder, 
+        [Parameter()]
+        [bool]$CreateTarget
+    )
+    $repoName = (Split-Path $Path -Leaf)
+    $i18n = getI18nFolder -path $Path
+    
+    # Should the target folder be created ?
+    if ($CreateTarget) { 
+        new-item -ItemType Directory $TargetFolder\$repoName -Force
+    }
+    # Copy Folder to new path
+    if ($i18n) {
+        Copy-Item -Path $i18n -Recurse -Destination $TargetFolder\$repoName -ErrorAction SilentlyContinue
+    }
+}
+
+#######################################
+# Exports i18n folders from a ui5 application
+# to another location
+Function Export-UI5Translations() {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [string]$Target,
+        [Parameter()]
+        [bool]$CreateTarget=$true
+    )
+
+    if (Test-Path $Path\package.json) {
+        # this is obviously an app directory
+        copyI18nFolder -Path (Resolve-Path $Path).Path -TargetFolder $Target -CreateTarget $CreateTarget
+    } else {
+        (gci -Path $Path) | % {
+           copyI18nFolder -Path $_.FullName -TargetFolder $Target -CreateTarget $CreateTarget
+        }
+    }
+}
+
 Function Get-ExistsGitRemoteBranch() {
     [CmdletBinding()]
     param(
@@ -32,22 +120,4 @@ Function Get-ExistsGitRemoteBranch() {
     
 }
 
-######################################
-# Checks if the directory is a git directory
-function Private:isGit([string]$path) {
-    (gci -Hidden  -Path $path) | % { 
-        if ($_.Name -eq ".git") { 
-            return $true 
-        } 
-    }
-    return $false
-}
-
-#######################################
-# Checks if the given branch exists in the given remote
-function Private:existsRemoteBranch([string]$gitPath, [string]$remote, [string]$branch) {
-    cd gitPath
-    $branchExists = ($(git ls-remote --heads $remote $branch ) -ne "")
-    cd ..
-    return $branchExists
-}
+Export-ModuleMember *-*
