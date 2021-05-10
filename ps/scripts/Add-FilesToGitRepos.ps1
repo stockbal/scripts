@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Can be used to add a list of files to a git repositories.
+    Can be used to add a list of files to a list of git repositories
 .DESCRIPTION
     The git repositories are to be specified as a list of URLs in a .txt file.
     The script clones each git respository, specified in a single line
