@@ -23,8 +23,15 @@ param(
     [string[]]$NewFiles,
     # Commit message for the added files
     [Parameter(Mandatory = $true)]
-    [string]$CommitMessage
+    [string]$CommitMessage,
+    # If the TestMode is provided, only the commit to the repositories will be done
+    # but no push will occur. The repositories will still exist after the script
+    # has run its course
+    [Parameter()]
+    [switch]$TestMode
 )
+
+$startingDirectory = Get-Location
 
 if (!(Test-Path $RepoListPath)) {
     Write-Error "'RepoListPath' is not a valid path to text document with git repository urls"
@@ -38,6 +45,14 @@ if (!(Test-Path $CloneTarget)) {
         exit
     }
 }
+# resolve relative clone target path
+$CloneTarget = Resolve-Path $CloneTarget
+# New files can also be entered as relative paths
+$NewFiles = (resolve-path $NewFiles -ErrorAction SilentlyContinue) | Sort-Object -Unique
+if (!$NewFiles) {
+    Write-Error "'NewFiles' could not be resolved to valid file paths"
+    exit
+}
 
 # Prints a parameter with name,value to console
 Function printParam([string]$name, $value) {
@@ -45,11 +60,13 @@ Function printParam([string]$name, $value) {
     Write-Host -ForegroundColor Green $value
 }
 
+$reposToBeProcessed = (Get-content $RepoListPath).Split("\n").Length
 # Check if user wants to continue
-printParam -name "Number of Repositories to process" -value (Get-content $RepoListPath).Length
+printParam -name "Number of Repositories to process" -value $reposToBeProcessed
 printParam -name "Target-Folder" -value (Resolve-Path $CloneTarget)
 printParam -name "Branch to checkout" -value $Branch
 printParam -name "Files to add" -value (Resolve-Path $NewFiles)
+printParam -name "Test mode" -value $TestMode
 if (!($continue = Read-Host "Are you sure you want to procede with the above parameters? (Y/n)")) {
     $continue = 'Y'
 }
@@ -85,19 +102,27 @@ if ($continue -ne 'Y') { exit }
     }
 
     Write-Host -ForegroundColor Yellow "3) Adding new files"
-    foreach ($newFile in $NewFiles) {
-        Copy-Item -Path $newFile -Destination $CloneTarget\$repoName
+    foreach ($newFilePath in $NewFiles) {
+        Copy-Item -Path $newFilePath -Destination $CloneTarget\$repoName\
     }
     git add -A 2>&1
     
     Write-Host -ForegroundColor Yellow "4) Create commit: '$CommitMessage'"
     git commit -m"$CommitMessage" -q
     
-    Write-Host -ForegroundColor Yellow "4) Pushing changes to remote"
-    git push origin -q
+    if (!$TestMode) {
+        Write-Host -ForegroundColor Yellow "5) Pushing changes to remote"
+        git push origin -q
+    }
     Set-Location ..
-    remove-item -Recurse -Force $repoName
+    if (!$TestMode) {
+        remove-item -Recurse -Force $repoName
+    }
     
     Write-Host -ForegroundColor DarkYellow "Finished $repoName"
     Write-Host "-----------------------------------------------------"
 }
+
+Write-Host -ForegroundColor Green "Number of processed repositories: $reposToBeProcessed"
+# go back to initial location
+Set-Location $startingDirectory
