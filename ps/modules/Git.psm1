@@ -5,7 +5,7 @@ Function isGit() {
         [Parameter()]
         [string]$path
     )
-    (gci -Hidden  -Path $path) | % { 
+    (Get-ChildItem -Hidden  -Path $path) | Foreach-Object { 
         if ($_.Name -eq ".git") { 
             return $true 
         } 
@@ -24,16 +24,16 @@ Function existsRemoteBranch() {
         [Parameter()]
         [string]$branch
     )
-    cd gitPath
+    Set-Location gitPath
     $branchExists = ($(git ls-remote --heads $remote $branch ) -ne "")
-    cd ..
+    Set-Location ..
     return $branchExists
 }
 #######################################
 # Retrieves the full path of an i18n folder inside the 
 # provided path
 Function getI18nFolder([string]$path) {
-    (gci $path -Recurse) | % {
+    (Get-ChildItem $path -Recurse) | Foreach-Object {
         if ($_.Name -eq "i18n") {
             return $_.FullName
         }
@@ -73,15 +73,16 @@ Function Export-UI5Translations() {
         [Parameter(Mandatory)]
         [string]$Target,
         [Parameter()]
-        [bool]$CreateTarget=$true
+        [bool]$CreateTarget = $true
     )
 
     if (Test-Path $Path\package.json) {
         # this is obviously an app directory
         copyI18nFolder -Path (Resolve-Path $Path).Path -TargetFolder $Target -CreateTarget $CreateTarget
-    } else {
-        (gci -Path $Path) | % {
-           copyI18nFolder -Path $_.FullName -TargetFolder $Target -CreateTarget $CreateTarget
+    }
+    else {
+        (Get-ChildItem -Path $Path) | Foreach-Object {
+            copyI18nFolder -Path $_.FullName -TargetFolder $Target -CreateTarget $CreateTarget
         }
     }
 }
@@ -92,28 +93,33 @@ Function Get-ExistsGitRemoteBranch() {
         [Parameter(Mandatory)]
         [string]$Path,
         [Parameter(Mandatory)]
-        [string]$Remote="origin",
+        [string]$Remote,
         [Parameter(Mandatory)]
         [string]$Branch
     )
+
+    if (!$Remote) {
+        $Remote = "origin"
+    }
 
     if (isGit($Path)) {
         if (existsRemoteBranch($Path, $Remote, $Branch)) {
             "Remote Branch '$Branch' exists"
             return
         }
-    } else {
+    }
+    else {
         # perform concurrent determination of the remote branch
         #$resultDict = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new();
-        #gci -Path . | ForEach-Object -parallel {
-        #    cd $_
+        #Get-ChildItem -Path . | ForEach-Object -parallel {
+        #    Set-Location $_
         #    "Determining branch info for $_"
         #    $branch_exists = 
         #    $repo_info = "" | Select release_2011
         #    If ($branch_exists) { $repo_info.release_2011 = "X" }
         #    $dict = $using:resultDict
         #    [void]$dict.TryAdd($_.Name, $repo_info)
-        #    cd ..
+        #    Set-Location ..
         #}
         #$resultDict
     }
