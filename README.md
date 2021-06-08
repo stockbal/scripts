@@ -33,3 +33,7 @@ Holds scripts for day to day use
 ## List of available cmdlets/functions
 - Get-FolderSizes  
   Determines the sizes of direct child folders of a given folder
+- Copy-UI5Translations  
+  Copies i18n folder (+ sub folders) of a UI5 App/Library to a given target folder
+- Test-I18nKeysUsage  
+  Checks the usage of the keys in all i18n translation files of a given App/Library folder

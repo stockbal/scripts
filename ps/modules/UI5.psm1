@@ -20,7 +20,7 @@ Function getI18nFolder() {
         (Get-ChildItem "$Path\webapp" -Recurse) | Foreach-Object {
             if ($_.Name -eq "i18n" -and $_.PSIsContainer) {
                 $i18nFolder.Path = $_.FullName
-                break;
+                return
             }
         }
     }
@@ -28,6 +28,7 @@ Function getI18nFolder() {
         (Get-ChildItem "$Path\src\**\messagebundle*.properties" -Recurse) | Foreach-Object {
             $i18nFolder.IsLib = $true
             $i18nFolder.Path = $_.DirectoryName
+            return
         }
     }
     return $i18nFolder
