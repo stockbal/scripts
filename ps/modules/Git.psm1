@@ -89,13 +89,18 @@ Function Reset-GitLocal() {
     foreach ($repo in $repoPaths) {
         Set-Location -Path $repo
         Write-Host "Resetting repo at ""$repo""..." -ForegroundColor Cyan
-        git reset HEAD --hard
-        if ($Branch) {
-            git checkout $Branch
+        if (!(isGit -path $repo)) {
+            Write-Host "The directory $repo does not appear to be a git repository" -ForegroundColor Red
         }
-        git pull
-        Write-Host
-        set-location $cwd
+        else {
+            git reset HEAD --hard
+            if ($Branch) {
+                git checkout $Branch
+            }
+            git pull
+            Write-Host
+        }
+        Set-Location $cwd
     }
     Set-Location $cwd
 }
@@ -131,7 +136,8 @@ Function Invoke-CloneGitRepos() {
         if ((Test-Path ($repoName)) -and ((Get-ChildItem $repoName).Length -ge 1)) {
             Write-Host "There already exists a non-empty directory with name '$repoName'" -ForegroundColor Red
             Write-Host
-        } else {
+        }
+        else {
             git clone $_url    
             Write-Host "Cloned $repoName repository" -ForegroundColor Green
             Write-Host
@@ -139,6 +145,31 @@ Function Invoke-CloneGitRepos() {
     }
 
     Set-Location $cwd
+}
+
+<#
+.SYNOPSIS
+    Creates a new remote branch for a single or multiple git repositories
+#>
+Function New-GitRemoteBranch() {
+    [CmdletBinding()]
+    param (
+        # Path(s) to a valid Git repository
+        [Parameter()]
+        [string[]] $Path,
+        # URLs to Git repositories
+        [Parameter()]
+        [string[]] $Url,
+        # Optional name of the base branch 
+        [Parameter(Mandatory = $true)]
+        [string] $BaseBranch,
+        # Name the new target branch
+        [Parameter(Mandatory = $true)]
+        [string] $TargetBranch,
+        # Name of the git commit message
+        [Parameter(Mandatory = $true)]
+        [string] $CommitMessage
+    )
 }
 
 Export-ModuleMember *-*
