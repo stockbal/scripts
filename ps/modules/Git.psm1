@@ -70,16 +70,34 @@ Function Reset-GitLocal() {
     param (
         # Path to a valid Git repository
         [Parameter(Mandatory = $true)]
-        [string] $Path,
+        [string[]] $Path,
         # Optional name of branch to which the repository should be resetted to
         [Parameter()]
         [string] $Branch
     )
-    git reset HEAD --hard
-    if ($Branch) {
-        git checkout $Branch
+    $cwd = Get-Location
+    $repoPaths = New-Object System.Collections.ArrayList
+    foreach ($item in $Path) {
+        $resolvedPaths = Resolve-Path $item
+        if ($resolvedPaths.GetType().IsArray) {
+            $repoPaths.AddRange($resolvedPaths)
+        }
+        else {
+            $repoPaths.Add($resolvedPaths)
+        }
     }
-    git pull
+    foreach ($repo in $repoPaths) {
+        Set-Location -Path $repo
+        Write-Host "Resetting repo at ""$repo""..." -ForegroundColor Cyan
+        git reset HEAD --hard
+        if ($Branch) {
+            git checkout $Branch
+        }
+        git pull
+        Write-Host
+        set-location $cwd
+    }
+    Set-Location $cwd
 }
 
 <#
@@ -109,9 +127,15 @@ Function Invoke-CloneGitRepos() {
     Set-Location $Target
 
     foreach ($_url in $Url) {
-        git clone $_url    
-        Write-Host "Cloned $(Split-Path -Leaf $_url) repository" -ForegroundColor Green
-        Write-Host
+        $repoName = Split-Path -Path $_url -Leaf
+        if ((Test-Path ($repoName)) -and ((Get-ChildItem $repoName).Length -ge 1)) {
+            Write-Host "There already exists a non-empty directory with name '$repoName'" -ForegroundColor Red
+            Write-Host
+        } else {
+            git clone $_url    
+            Write-Host "Cloned $repoName repository" -ForegroundColor Green
+            Write-Host
+        }
     }
 
     Set-Location $cwd
