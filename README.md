@@ -31,13 +31,18 @@ Holds scripts for day to day use
   Adds a list of files to 1 ore more git repositories whose URLs are defined in simple text file. For a complete list of parameters enter `Get-Help Add-FilesToGitRepos` in a `PowerShell` instance
 
 ## List of available cmdlets/functions
+### Module 'Folder-Scripts'
 - Get-FolderSizes  
   Determines the sizes of direct child folders of a given folder
+
+### Module 'UI5'  
 - Copy-UI5Translations  
   Copies i18n folder (+ sub folders) of a UI5 App/Library to a given target folder
 - Test-I18nKeysUsage  
-  Checks the usage of the keys in all i18n translation files of a given App/Library folder
+  Checks the usage of the keys in all i18n translation files of a given App/Library folder  
+
+### Module 'Git'
 - Reset-GitLocal  
   Resets local changes of a single or multiple git repositories
 - Invoke-CloneGitRepos  
-  Clones git repositories from given list of git URLs
+  Clones git repositories from given list of git URLs  
