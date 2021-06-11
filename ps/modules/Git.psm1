@@ -75,7 +75,46 @@ Function Reset-GitLocal() {
         [Parameter()]
         [string] $Branch
     )
+    git reset HEAD --hard
+    if ($Branch) {
+        git checkout $Branch
+    }
+    git pull
+}
 
+<#
+.SYNOPSIS
+    Clones a single or multiple repositories
+#>
+Function Invoke-CloneGitRepos() {
+    [CmdletBinding()]
+    param (
+        # Path to a valid Git repository
+        [Parameter(Mandatory = $true)]
+        [string[]] $Url,
+        # Optional name of branch to which the repository should be resetted to
+        [Parameter()]
+        [string] $Branch,
+        # Target folder to clone the repositories to
+        [Parameter(Mandatory = $true)]
+        [string] $Target
+    )
+
+    $cwd = Get-Location
+
+    if (!(Test-Path $Target)) {
+        New-Item -ItemType Directory $Target -Force
+    }
+
+    Set-Location $Target
+
+    foreach ($_url in $Url) {
+        git clone $_url    
+        Write-Host "Cloned $(Split-Path -Leaf $_url) repository" -ForegroundColor Green
+        Write-Host
+    }
+
+    Set-Location $cwd
 }
 
 Export-ModuleMember *-*
