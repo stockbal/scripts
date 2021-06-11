@@ -35,14 +35,14 @@ $startingDirectory = Get-Location
 
 if (!(Test-Path $RepoListPath)) {
     Write-Error "'RepoListPath' is not a valid path to text document with git repository urls"
-    exit
+    return
 }
 
 if (!(Test-Path $CloneTarget)) {
     new-item -ItemType Directory $CloneTarget -Force
     if (!(Test-Path $CloneTarget)) {
         Write-Error "'$CloneTarget' could not be created successfully. Please check the path!"
-        exit
+        return
     }
 }
 # resolve relative clone target path
@@ -51,7 +51,7 @@ $CloneTarget = Resolve-Path $CloneTarget
 $NewFiles = (resolve-path $NewFiles -ErrorAction SilentlyContinue) | Sort-Object -Unique
 if (!$NewFiles) {
     Write-Error "'NewFiles' could not be resolved to valid file paths"
-    exit
+    return
 }
 
 # Prints a parameter with name,value to console
@@ -70,7 +70,7 @@ printParam -name "Test mode" -value $TestMode
 if (!($continue = Read-Host "Are you sure you want to procede with the above parameters? (Y/n)")) {
     $continue = 'Y'
 }
-if ($continue -ne 'Y') { exit }
+if ($continue -ne 'Y') { return }
 
 # Clear the target path
 (Get-ChildItem $CloneTarget) | ForEach-Object {
