@@ -37,3 +37,7 @@ Holds scripts for day to day use
   Copies i18n folder (+ sub folders) of a UI5 App/Library to a given target folder
 - Test-I18nKeysUsage  
   Checks the usage of the keys in all i18n translation files of a given App/Library folder
+- Reset-GitLocal  
+  Resets local changes of a single or multiple git repositories
+- Invoke-CloneGitRepos  
+  Clones git repositories from given list of git URLs
