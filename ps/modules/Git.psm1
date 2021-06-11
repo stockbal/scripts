@@ -1,17 +1,26 @@
-<# 
-    Checks if the directory is a git directory
-#>
-Function isGit() {
-    param(
-        [Parameter()]
-        [string]$path
-    )
-    (Get-ChildItem -Hidden  -Path $path) | Foreach-Object { 
-        if ($_.Name -eq ".git") { 
-            return $true 
-        } 
+Function runGit([string[]]$GitArgs, [switch]$Verbose) {
+    if ($PSBoundParameters['Verbose']) {
+        git $GitArgs
     }
-    return $false
+    else {
+        git $GitArgs -q 2>&1 | Out-Null
+    }
+}
+<#
+    Collects the full paths of a list of relative paths
+#>
+Function collectPaths([string[]]$RelativePath) {
+    $finalPaths = New-Object System.Collections.ArrayList
+    foreach ($item in $RelativePath) {
+        $resolvedPaths = Resolve-Path $item
+        if ($resolvedPaths.GetType().IsArray) {
+            $finalPaths.AddRange($resolvedPaths.Path) | Out-Null
+        }
+        else {
+            $finalPaths.Add($resolvedPaths.Path) | Out-Null
+        }
+    }
+    return $finalPaths
 }
 
 <#
@@ -28,7 +37,7 @@ Function existsRemoteBranch() {
     )
     $currentLocation = Get-Location
     Set-Location $GitPath
-    $branchExists = $null -ne (git ls-remote --heads $Remote $Branch 2>0)
+    $branchExists = $null -ne (git ls-remote --heads $Remote $Branch 2>&1)
     Set-Location $currentLocation
     return $branchExists
 }
@@ -51,13 +60,25 @@ Function Test-GitRemoteBranchExists() {
 
     $Path = Resolve-Path $Path
 
-    if (isGit($Path)) {
+    if ((Test-Path -Path "$Path\.git")) {
         return existsRemoteBranch -GitPath $Path -Remote $Remote -Branch $Branch
     }
     else {
         Write-Error "There is not git repository at path $Path"
     }
     return $false    
+}
+
+<#
+    Checks if a branch exists
+#>
+Function Test-GitBranchExists() {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string] $Branch
+    )
+    return ([string](git symbolic-ref HEAD)).EndsWith($Branch)
 }
 
 <#
@@ -70,34 +91,19 @@ Function Reset-GitLocal() {
     param (
         # Path to a valid Git repository
         [Parameter(Mandatory = $true)]
-        [string[]] $Path,
-        # Optional name of branch to which the repository should be resetted to
-        [Parameter()]
-        [string] $Branch
+        [string[]] $Path
     )
     $cwd = Get-Location
-    $repoPaths = New-Object System.Collections.ArrayList
-    foreach ($item in $Path) {
-        $resolvedPaths = Resolve-Path $item
-        if ($resolvedPaths.GetType().IsArray) {
-            $repoPaths.AddRange($resolvedPaths)
-        }
-        else {
-            $repoPaths.Add($resolvedPaths)
-        }
-    }
+    $repoPaths = collectPaths -RelativePath $Path
     foreach ($repo in $repoPaths) {
         Set-Location -Path $repo
         Write-Host "Resetting repo at ""$repo""..." -ForegroundColor Cyan
-        if (!(isGit -path $repo)) {
-            Write-Host "The directory $repo does not appear to be a git repository" -ForegroundColor Red
+        if (!(Test-Path -Path "$repo\.git")) {
+            Write-Error "The directory $repo does not appear to be a git repository"
         }
         else {
-            git reset HEAD --hard
-            if ($Branch) {
-                git checkout $Branch
-            }
-            git pull
+            runGit -GitArgs reset, HEAD, --hard -Verbose:($PSBoundParameters['Verbose'])
+            runGit -GitArgs pull -Verbose:($PSBoundParameters['Verbose'])
             Write-Host
         }
         Set-Location $cwd
@@ -114,7 +120,7 @@ Function Invoke-CloneGitRepos() {
     param (
         # Path to a valid Git repository
         [Parameter(Mandatory = $true)]
-        [string[]] $Url,
+        [string[]] $URL,
         # Optional name of branch to which the repository should be resetted to
         [Parameter()]
         [string] $Branch,
@@ -126,19 +132,20 @@ Function Invoke-CloneGitRepos() {
     $cwd = Get-Location
 
     if (!(Test-Path $Target)) {
-        New-Item -ItemType Directory $Target -Force
+        New-Item -ItemType Directory $Target -Force | Out-Null
     }
 
     Set-Location $Target
 
-    foreach ($_url in $Url) {
-        $repoName = Split-Path -Path $_url -Leaf
+    foreach ($u in $URL) {
+        $repoName = Split-Path -Path $u -Leaf
         if ((Test-Path ($repoName)) -and ((Get-ChildItem $repoName).Length -ge 1)) {
-            Write-Host "There already exists a non-empty directory with name '$repoName'" -ForegroundColor Red
+            Write-Error "There already exists a non-empty directory with name '$repoName'"
             Write-Host
         }
         else {
-            git clone $_url    
+            Write-Host "> Cloning '$repoName'..." -ForegroundColor Yellow
+            runGit -GitArgs clone, $u -Verbose:($PSBoundParameters['Verbose'])
             Write-Host "Cloned $repoName repository" -ForegroundColor Green
             Write-Host
         }
@@ -159,17 +166,97 @@ Function New-GitRemoteBranch() {
         [string[]] $Path,
         # URLs to Git repositories
         [Parameter()]
-        [string[]] $Url,
-        # Optional name of the base branch 
+        [string[]] $URL,
+        # Working directory for cloning repositories
+        [Parameter()]
+        [string] $WorkingDir = ".",
+        # Name of the base branch for the new remote branch
         [Parameter(Mandatory = $true)]
         [string] $BaseBranch,
         # Name the new target branch
         [Parameter(Mandatory = $true)]
-        [string] $TargetBranch,
-        # Name of the git commit message
-        [Parameter(Mandatory = $true)]
-        [string] $CommitMessage
+        [string] $TargetBranch
     )
+
+    # remember current location
+    $cwd = Get-Location
+
+    if (($Path -and $URL) -or (!$Path -and !$URL)) {
+        Write-Error "You must pass a value to -Path or -URL but not both"
+        return
+    }
+    $urlMode = $false
+    # Determine the paths to the git repositories
+    if ($Path) {
+        $repoPaths = (collectPaths $Path)
+    }
+    else {
+        $urlMode = $true
+        if (!(Test-Path $WorkingDir)) {
+            New-Item -ItemType Directory $WorkingDir | Out-Null
+            if (!(Test-Path $WorkingDir)) {
+                return
+            }
+        }
+        $WorkingDir = (Resolve-Path $WorkingDir)
+        $repoPaths = $URL
+    }
+
+    # process the repositories
+    $repoCount = $repoPaths.Count
+    $i = 0
+    foreach ($repoPath in $repoPaths) {
+        $i++
+        $repoName = (Split-Path -Leaf $repoPath)
+        Write-Host
+        Write-Host "[$i/$repoCount] Processing path '$repoPath'" -ForegroundColor Yellow
+        if ($urlMode) {
+            Set-Location $WorkingDir
+            if ((Test-Path ($repoName)) -and ((Get-ChildItem $repoName).Length -ge 1)) {
+                Write-Error "There already exists a non-empty directory with name '$repoName'"
+                Write-Host
+                continue
+            }
+            Write-Host " > Cloning..." -ForegroundColor Cyan
+            # git clone $repoPath -q
+            runGit -GitArgs clone, $repoPath -Verbose:($PSBoundParameters['Verbose'])
+            Set-Location $repoName
+        }
+        else {
+            Set-Location $repoPath
+        }
+
+        # Now the base branch should be checked out
+        if (!(Test-GitBranchExists -Branch $BaseBranch)) {
+            Write-Error "Branch $Branch does not exist in repository"
+            continue
+        }
+
+        # check if the remote branch already exists
+        Write-Host " > Checking remote branch existence '$TargetBranch'" -ForegroundColor Cyan
+        if ((existsRemoteBranch -GitPath . -Remote "origin" -Branch $TargetBranch)) {
+            Write-Error "Remote branch '$TargetBranch' already exists"
+            continue
+        }
+
+        # create the new branch
+        Write-Host " > Create new branch '$TargetBranch'" -ForegroundColor Cyan
+        # git branch $TargetBranch origin/$BaseBranch -q 2>&1
+        runGit -GitArgs branch, $TargetBranch, origin/$BaseBranch -Verbose:($PSBoundParameters['Verbose'])
+        # git push -u origin $TargetBranch -q 2>&1 | Out-Null
+        runGit -GitArgs push, -u, origin, $TargetBranch -Verbose:($PSBoundParameters['Verbose']) 
+        if ((existsRemoteBranch -GitPath . -Remote "origin" -Branch $TargetBranch)) {
+            Write-Host "   Remote branch '$TargetBranch' created for '$repoName'" -ForegroundColor Green
+        }
+    }
+    Set-Location $cwd
+
+    if ($WorkingDir -ne $cwd -and !($deleteConfirm = Read-Host "Delete working directory '$WorkingDir' (Y/n)")) {
+        $deleteConfirm = 'Y'
+    }
+    if ($deleteConfirm -eq 'Y') {
+        Remove-Item -Recurse -Force $WorkingDir
+    }
 }
 
 Export-ModuleMember *-*

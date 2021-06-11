@@ -46,3 +46,5 @@ Holds scripts for day to day use
   Resets local changes of a single or multiple git repositories
 - Invoke-CloneGitRepos  
   Clones git repositories from given list of git URLs  
+- New-GitRemoteBranch  
+  Create new remote branch in a list of git repositories
