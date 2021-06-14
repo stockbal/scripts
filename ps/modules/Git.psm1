@@ -147,6 +147,10 @@ Function Invoke-CloneGitRepos() {
             Write-Host "> Cloning '$repoName'..." -ForegroundColor Yellow
             runGit -GitArgs clone, $u -Verbose:($PSBoundParameters['Verbose'])
             Write-Host "Cloned $repoName repository" -ForegroundColor Green
+            if ($Branch) {
+                Write-Host "> Checking out branch '$Branch'..." -ForegroundColor Yellow
+                runGit -GitArgs checkout, $Branch -Verbose:($PSBoundParameters['Verbose'])
+            }
             Write-Host
         }
     }
