@@ -251,11 +251,14 @@ Function New-GitRemoteBranch() {
     }
     Set-Location $cwd
 
-    if ($WorkingDir -ne $cwd -and !($deleteConfirm = Read-Host "Delete working directory '$WorkingDir' (Y/n)")) {
-        $deleteConfirm = 'Y'
-    }
-    if ($deleteConfirm -eq 'Y') {
-        Remove-Item -Recurse -Force $WorkingDir
+    # try Delete working directory
+    if ($urlMode -and ($WorkingDir -ne $cwd)) {
+        if (!($deleteConfirm = Read-Host "Delete working directory '$WorkingDir' (Y/n)")) {
+            $deleteConfirm = 'Y'
+        }
+        if ($deleteConfirm -eq 'Y') {
+            Remove-Item -Recurse -Force $WorkingDir
+        }
     }
 }
 
