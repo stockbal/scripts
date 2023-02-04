@@ -48,3 +48,17 @@ Holds scripts for day to day use
   Clones git repositories from given list of git URLs  
 - New-GitRemoteBranch  
   Create new remote branch in a list of git repositories
+
+## Examples calls
+### New-GitRemoteBranch
+Create new remote branches for a list of git repositories.  
+The repository URLs are supplied via a text file
+```powershell
+> New-GitRemoteBranch -URL (cat ~\repos.txt) -BaseBranch master -TargetBranch release_new -WorkingDir temp
+```
+
+Create new remote branches for a specific git repository that already exists on the pc
+
+```powershell
+> New-GitRemoteBranch -Path .\repository -BaseBranch master -TargetBranch release_new
+```

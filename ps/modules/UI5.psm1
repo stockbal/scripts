@@ -95,15 +95,19 @@ Function checkI18nFilesForKey() {
         [Parameter()]
         [string] $Key,
         [Parameter()]
-        [string] $CustomPattern,
+        [string[]] $CustomPattern,
         [Parameter()]
-        [bool] $PrintUsages
+        [bool] $PrintUsages,
+        [Parameter()]
+        [bool] $OverridePattern
     )
 
-    if ($CustomPattern) {
-        $patterns = @(
-            $CustomPattern.Replace("{key}", "($Key)")
-        )
+    if ($CustomPattern -and $OverridePattern) {
+        foreach ($pattern in $CustomPattern) {
+            $patterns += @(
+                $pattern.Replace("{key}", "($Key)")
+            )
+        }
     }
     else {
         $patterns = @(
@@ -111,6 +115,11 @@ Function checkI18nFilesForKey() {
             "getText\([`\""']($Key)[`\""']" 
             "{(.*i18n>$Key)}"
         )
+        if ($CustomPattern) {
+            foreach ($pattern in $CustomPattern) {
+                $patterns += @($pattern.Replace("{key}", "($Key)"))
+            }
+        }
     }
     $usages = (Get-ChildItem -Path $FilePaths | Select-String -Pattern $patterns -CaseSensitive -AllMatches )
     if ($usages -and $PrintUsages) {
@@ -148,7 +157,7 @@ Function checkI18nFilesForKey() {
     - getText\([`\""']($Key)[`\""']
     - {(.*i18n>$Key)}
 
-    Via the parameter -CustomPattern it is possible to override the preconfigured patterns.
+    Via the parameter -CustomPattern it is possible to add custom patterns to the default ones.
     The pattern must be a valid pattern for CmdLet 'Select-String' and must contain the 
     string {key} which will be replaced with an actual key from a i18n file
 #>
@@ -163,7 +172,11 @@ Function Test-I18nKeysUsage() {
         [UI5Type] $RepoType = [UI5Type]::App,
         # Custom pattern for key usage search
         [Parameter()]
-        [string] $CustomPattern,
+        [string[]] $CustomPattern,
+        # If supplied only the custom pattern are used and therefore must
+        # be supplied
+        [Parameter()]
+        [switch] $OnlyCustomPatterns,
         # If Specified the usages of i18n keys are printed to the console
         [Parameter()]
         [switch] $PrintUsages,
@@ -171,6 +184,11 @@ Function Test-I18nKeysUsage() {
         [Parameter()]
         [switch] $NoPrintMissingUsages
     )
+
+    if ($OnlyCustomPatterns -and !$CustomPattern) {
+        Write-Error "No value for parameter -CustomPattern specified"
+        return
+    }
 
     # Resolve the final path
     $Path = Resolve-Path $Path
@@ -203,7 +221,7 @@ Function Test-I18nKeysUsage() {
                 if ($keyValue -and $keyValue.Count -ge 1) {
                     $keys++
                     $newKey = $keyValue[0].Trim()
-                    $found = (checkI18nFilesForKey -FilePaths $relevantFilesPath -Key $newKey -CustomPattern $CustomPattern -PrintUsages $PrintUsages)
+                    $found = (checkI18nFilesForKey -FilePaths $relevantFilesPath -Key $newKey -CustomPattern $CustomPattern -PrintUsages $PrintUsages -OverridePattern $OnlyCustomPatterns)
             
                     if (!$found) {
                         if (!$NoPrintMissingUsages) {
