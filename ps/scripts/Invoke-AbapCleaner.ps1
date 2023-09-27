@@ -16,7 +16,10 @@ param(
     [string[]]$Files,
     # Optional - Git commit to use as file source
     [Parameter()]
-    [string]$CommitHash
+    [string]$CommitHash,
+    # ABAP Release restriction
+    [Parameter()]
+    [string]$Release
 )
 
 if ($WorkingDir -eq "") {
@@ -51,6 +54,7 @@ if ($null -eq $abapFiles) {
 
 $fileCount = $abapFiles.Count
 
+# Check if environment variables are correctly set
 if ($null -eq $env:ABAPCleanerProfile) {
     Write-Error "Environment variable 'ABAPCleanerProfile' is not set"
     return
@@ -79,7 +83,12 @@ $abapFiles | ForEach-Object {
 
     Write-Host "Processing File '$(Resolve-Path -Relative $_)' ($i of $fileCount)"
     
-    $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe --sourcefile $_ --targetfile $_ --overwrite --release "753" --profile $env:ABAPCleanerProfile)
+    if (!($Release -eq "")) {
+        $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe --sourcefile $_ --targetfile $_ --overwrite --release $Release --profile $env:ABAPCleanerProfile)
+    }
+    else {
+        $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe --sourcefile $_ --targetfile $_ --overwrite --profile $env:ABAPCleanerProfile)
+    }
     if (!($null -eq $formattingError) -and $formattingError[0].StartsWith("Parse error")) {
         Write-Host " > Error during processing. File could not be formatted/cleaned!" -ForegroundColor Red
         Write-Host " > Reason: $($formattingError[0])" -ForegroundColor Red
