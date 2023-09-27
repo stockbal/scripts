@@ -55,14 +55,11 @@ if ($null -eq $abapFiles) {
 $fileCount = $abapFiles.Count
 
 # Check if environment variables are correctly set
-if ($null -eq $env:ABAPCleanerProfile) {
-    Write-Error "Environment variable 'ABAPCleanerProfile' is not set"
-    return
+if ($null -eq $env:ABAPCleanerProfile -or !(Test-Path $env:ABAPCleanerProfile) -or !($env:ABAPCleanerProfile).EndsWith(".cfj")) {
+    Write-Warning "ABAP-Cleaner profile not set in Environment variable 'ABAPCleanerProfile'. Default settings are used!"
 }
-
-if (!(Test-Path $env:ABAPCleanerProfile) -or !($env:ABAPCleanerProfile).EndsWith(".cfj")) {
-    Write-Error "Environment variable 'ABAPCleanerProfile' does not point to a valid .cfj file"
-    return
+else {
+    $cleanerProfile = $env:ABAPCleanerProfile
 }
 
 if ($null -eq $env:ABAPCleanerStandalone) {
@@ -82,13 +79,19 @@ $abapFiles | ForEach-Object {
     $i++
 
     Write-Host "Processing File '$(Resolve-Path -Relative $_)' ($i of $fileCount)"
+
+    $cleanerArgs = @();
+    $cleanerArgs += "--sourcefile", $_, "--targetfile", $_, "--overwrite"
     
     if (!($Release -eq "")) {
-        $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe --sourcefile $_ --targetfile $_ --overwrite --release $Release --profile $env:ABAPCleanerProfile)
+        $cleanerArgs += "--release", $Release
     }
-    else {
-        $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe --sourcefile $_ --targetfile $_ --overwrite --profile $env:ABAPCleanerProfile)
-    }
+    if (!($null -eq $cleanerProfile)) {
+        $cleanerArgs += "--profile", $cleanerProfile
+    } 
+
+    $formattingError = (& $env:ABAPCleanerStandalone/abap-cleanerc.exe $cleanerArgs)
+
     if (!($null -eq $formattingError) -and $formattingError[0].StartsWith("Parse error")) {
         Write-Host " > Error during processing. File could not be formatted/cleaned!" -ForegroundColor Red
         Write-Host " > Reason: $($formattingError[0])" -ForegroundColor Red
