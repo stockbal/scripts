@@ -37,8 +37,6 @@ Holds scripts for day to day use
 
 - **Add-FilesToGitRepos**  
   Adds a list of files to 1 ore more git repositories whose URLs are defined in simple text file. For a complete list of parameters enter `Get-Help Add-FilesToGitRepos` in a `PowerShell` instance
-- **Invoke-AbapCleaner**  
-  Allows to execute the [abap-cleaner](https://github.com/SAP/abap-cleaner) (standalone-version) against an abapGit repository (local) or any number of arbitrary `*.abap` files. It is also possible to provide a commit hash, to only format the changed ABAP files in a certain commit.
 - **Set-PlugInVersions**  
   Changes the version of an Eclipse Plug-In project in all available metadata files (i.e. `manifest.mf`, `features.xml`, `pom.xml`).  
   **Note**: The version change itself is performed with maven tycho, and therefore requires that the plug-in project is setup with maven (i.e. root folder needs a `pom.xml`-file)
